@@ -1,0 +1,57 @@
+<div class="video-recorder">
+  <div class="video-preview">
+    <webcam
+      #webcam
+      [videoOptions]="videoOptions"
+      (initError)="handleInitError($event)"
+      (imageCapture)="handleImage($event)"
+      [switchCamera]="showNextWebcam"
+      (cameraSwitched)="cameraWasSwitched($event)"
+      [allowCameraSwitch]="true"
+      [height]="480"
+      [width]="640">
+    </webcam>
+
+    <div class="quality-selector">
+      <button 
+        [class.active]="(quality$ | async) === VideoQuality.LOW" 
+        (click)="setQuality(VideoQuality.LOW)"
+        [style.background-color]="(quality$ | async) === VideoQuality.LOW ? 'var(--primary-color)' : 'rgba(0,0,0,0.5)'">
+        360p
+      </button>
+      <button 
+        [class.active]="(quality$ | async) === VideoQuality.MEDIUM" 
+        (click)="setQuality(VideoQuality.MEDIUM)"
+        [style.background-color]="(quality$ | async) === VideoQuality.MEDIUM ? 'var(--primary-color)' : 'rgba(0,0,0,0.5)'">
+        720p
+      </button>
+      <button 
+        [class.active]="(quality$ | async) === VideoQuality.HIGH" 
+        (click)="setQuality(VideoQuality.HIGH)"
+        [style.background-color]="(quality$ | async) === VideoQuality.HIGH ? 'var(--primary-color)' : 'rgba(0,0,0,0.5)'">
+        1080p
+      </button>
+    </div>
+
+    <div class="record-controls">
+      <button 
+        class="record-btn" 
+        [class.recording]="isRecording" 
+        (click)="isRecording ? stopRecording() : startRecording()"
+        [style.background-color]="isRecording ? 'var(--danger-color)' : 'var(--primary-color)'">
+        {{ isRecording ? 'Stop' : 'Record' }}
+      </button>
+      <div *ngIf="isRecording" class="timer">{{ recordingTime | number:'1.1-1' }}s</div>
+    </div>
+
+    <div *ngIf="isRecording" class="progress-bar">
+      <div class="progress" [style.width.%]="recordingProgress"></div>
+    </div>
+  </div>
+
+  <div *ngIf="errors.length > 0" class="error-messages">
+    <div *ngFor="let error of errors" class="error">
+      {{ error.message }}
+    </div>
+  </div>
+</div>

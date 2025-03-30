@@ -10,6 +10,7 @@
   },
   "private": true,
   "dependencies": {
+    "@angular/animations": "^19.2.4",
     "@angular/common": "^19.2.0",
     "@angular/compiler": "^19.2.0",
     "@angular/core": "^19.2.0",
@@ -17,8 +18,16 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "@ngxs/devtools-plugin": "^19.0.0",
+    "@ngxs/logger-plugin": "^19.0.0",
+    "@ngxs/store": "^19.0.0",
+    "@types/localforage": "^0.0.33",
+    "@types/uuid": "^10.0.0",
+    "localforage": "^1.10.0",
+    "ngx-webcam": "^0.4.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
+    "uuid": "^11.1.0",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {

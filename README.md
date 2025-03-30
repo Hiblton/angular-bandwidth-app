@@ -1,59 +1,99 @@
-# AngularBandwidthApp
+# Angular Bandwidth Check and Video Recorder
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.5.
+A responsive web application built with Angular that evaluates the user's bandwidth and provides video recording capabilities with dynamic quality settings.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- **Bandwidth Check**
+  - Automatically measures user's bandwidth on app load
+  - Determines video quality based on bandwidth:
+    - Low Quality (360p): < 2 Mbps
+    - Medium Quality (720p): 2-5 Mbps
+    - High Quality (1080p): > 5 Mbps
 
-```bash
-ng serve
-```
+- **Video Recording**
+  - Record video snippets up to 10 seconds
+  - Manual quality selection override
+  - Real-time recording timer
+  - Automatic quality adjustment based on bandwidth
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- **Video Management**
+  - List of recorded videos with thumbnails
+  - Video playback controls
+  - Delete functionality
+  - Persistent storage (videos remain after page refresh)
 
-## Code scaffolding
+## Technical Details
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+- **State Management**: NGXS for centralized state management
+- **Storage**: LocalStorage with Base64 encoding for video persistence
+- **Video Processing**: MediaRecorder API for video capture and WebM format
+- **Styling**: CSS Grid and Flexbox for responsive layout
 
-```bash
-ng generate component component-name
-```
+## Prerequisites
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+- Node.js (v14 or higher)
+- npm (v6 or higher)
+- Modern web browser with webcam support
 
-```bash
-ng generate --help
-```
+## Setup Instructions
 
-## Building
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd angular-bandwidth-app
+   ```
 
-To build the project run:
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-ng build
-```
+3. Start the development server:
+   ```bash
+   npm start
+   ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+4. Open your browser and navigate to `http://localhost:4200`
 
-## Running unit tests
+## Implementation Details
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+### Bandwidth Detection
+The application uses a test file download to measure bandwidth. It performs multiple measurements and averages them for accuracy.
 
-```bash
-ng test
-```
+### Video Storage
+Videos are stored in the browser's LocalStorage:
+- Video blobs are converted to Base64 strings for storage
+- Metadata (quality, duration, timestamp) is stored alongside the video
+- Videos older than 30 days are automatically cleaned up
 
-## Running end-to-end tests
+### Error Handling
+- Graceful fallback to medium quality if bandwidth detection fails
+- User notifications for camera access issues
+- Validation for storage limits and video duration
 
-For end-to-end (e2e) testing, run:
+## Browser Support
 
-```bash
-ng e2e
-```
+Tested and supported in:
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Known Limitations
 
-## Additional Resources
+- LocalStorage has a size limit (typically 5-10MB)
+- Video quality is limited by the user's camera capabilities
+- Bandwidth measurement may vary based on network conditions
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
