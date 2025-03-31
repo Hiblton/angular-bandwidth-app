@@ -4,13 +4,11 @@ import { VideoState, LoadVideos, DeleteVideo } from '../../store/video.state';
 import { VideoRecording } from '../../models/video.model';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { DurationPipe } from '../../pipes/duration.pipe';
 
 @Component({
   selector: 'app-video-list',
   templateUrl: './video-list.component.html',
-  styleUrls: ['./video-list.component.scss'],
-  imports: [DurationPipe]
+  styleUrls: ['./video-list.component.scss']
 })
 export class VideoListComponent implements OnInit, OnDestroy {
   videos$: Observable<VideoRecording[]>;

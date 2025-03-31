@@ -37,8 +37,7 @@
               "src/styles.scss"
             ],
             "scripts": [],
-            "baseHref": "/angular-bandwidth-app/",
-            "deployUrl": "/angular-bandwidth-app/",
+            "baseHref": "/",
             "allowedCommonJsDependencies": [
               "localforage"
             ]
@@ -116,8 +115,7 @@
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
             "outputPath": "dist/angular-bandwidth-app",
-            "baseHref": "/angular-bandwidth-app/",
-            "deployUrl": "/angular-bandwidth-app/",
+            "baseHref": "/",
             "assets": [
               {
                 "glob": "**/*",
