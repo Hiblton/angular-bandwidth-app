@@ -6,9 +6,7 @@
       [videoOptions]="videoOptions"
       (initError)="handleInitError($event)"
       [allowCameraSwitch]="availableWebcams.length > 1"
-      (cameraSwitched)="cameraWasSwitched($event)"
-      [height]="480"
-      [width]="640">
+      (cameraSwitched)="cameraWasSwitched($event)">
     </webcam>
 
     <div class="quality-selector">

@@ -1,35 +1,31 @@
 <div class="video-list">
-  <h2>Recorded Videos</h2>
-  
   <div class="video-list-container">
-    <ng-container *ngIf="videos$ | async as videos">
-      <div *ngIf="loading$ | async" class="loading">
-        Loading videos...
-      </div>
-      
-      <div *ngIf="error$ | async as error" class="error">
-        {{ error }}
-      </div>
-      
-      <div *ngIf="!(loading$ | async) && !(error$ | async) && videos.length === 0" class="no-videos">
-        No videos recorded yet.
-      </div>
-      
-      <div *ngIf="!(loading$ | async) && !(error$ | async) && videos.length > 0" class="videos-container">
-        <div *ngFor="let video of videos; trackBy: trackByVideoId" class="video-item fade-in">
-          <div class="video-preview">
-            <video [src]="getVideoUrl(video)" controls></video>
-            <button (click)="deleteVideo(video)" class="delete-btn">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-          <div class="video-info">
-            <div class="quality">{{ video.quality }}</div>
-            <div class="duration">{{ video.duration | duration }}</div>
-            <div class="date">{{ video.timestamp | date:'medium' }}</div>
+    <div *ngIf="loading$ | async" class="loading">
+      Loading videos...
+    </div>
+    <div *ngIf="error$ | async as error" class="error">
+      {{ error }}
+    </div>
+    <div *ngIf="!(loading$ | async) && !(error$ | async)" class="videos-container">
+      <div *ngFor="let video of videos$ | async; trackBy: trackByVideoId" class="video-item fade-in">
+        <div class="quality-label">{{ video.quality }}</div>
+        <button class="delete-btn" (click)="deleteVideo($event, video)">
+          <i class="fas fa-trash"></i>
+        </button>
+        <div class="video-preview">
+          <video [src]="getVideoUrl(video)" controls></video>
+        </div>
+        <div class="video-info">
+          <div class="metadata">
+            <span class="date">{{ video.timestamp | date:'dd.MM.yyyy' }}</span>
+            <span class="time">{{ video.timestamp | date:'HH:mm' }}</span>
+            <span class="duration">{{ video.duration | duration }}s</span>
           </div>
         </div>
       </div>
-    </ng-container>
+      <div *ngIf="(videos$ | async)?.length === 0" class="no-videos">
+        No recorded videos yet
+      </div>
+    </div>
   </div>
 </div> 

@@ -4,38 +4,37 @@ import { Component } from '@angular/core';
   selector: 'app-root',
   template: `
     <div class="app-container">
-      <div class="recorder-section">
+      <div class="main-content">
         <app-video-recorder></app-video-recorder>
       </div>
-      <div class="list-section">
+      <div class="sidebar">
         <app-video-list></app-video-list>
       </div>
     </div>
   `,
   styles: [`
     .app-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      padding: 20px;
+      display: flex;
+      width: 100%;
       height: 100vh;
-      box-sizing: border-box;
-      background-color: var(--light-color);
+      background-color: var(--bg-color);
+      padding: 20px;
+      gap: 20px;
     }
 
-    .recorder-section {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      padding: 20px;
+    .main-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--bg-color);
     }
 
-    .list-section {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      padding: 20px;
-      overflow: hidden;
+    .sidebar {
+      width: 320px;
+      border-left: 1px solid var(--border-color);
+      background-color: var(--bg-color);
     }
   `]
 })

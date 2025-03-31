@@ -22,13 +22,14 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
   public videoOptions: MediaTrackConstraints = {
     width: { ideal: 1280 },
     height: { ideal: 720 },
-    frameRate: { ideal: 30 },
-    advanced: [
-      {
-        noiseSuppression: true,
-        echoCancellation: true
-      }
-    ]
+    facingMode: 'environment'
+  };
+
+  webcamOptions = {
+    width: 640,
+    height: 480,
+    imageSmoothing: true,
+    mirror: false
   };
 
   // Audio constraints

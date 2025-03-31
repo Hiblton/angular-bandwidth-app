@@ -65,7 +65,13 @@ export class VideoListComponent implements OnInit, OnDestroy {
     return this.blobUrls[video.id] || '';
   }
 
-  deleteVideo(video: VideoRecording): void {
+  deleteVideo(event: Event, video: VideoRecording): void {
+    event.stopPropagation();
     this.store.dispatch(new DeleteVideo(video.id));
+  }
+
+  playVideo(video: VideoRecording): void {
+    // Video will play when clicked since it's in the template
+    event?.stopPropagation();
   }
 } 
