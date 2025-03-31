@@ -4,7 +4,6 @@
       #webcam
       [videoOptions]="videoOptions"
       (initError)="handleInitError($event)"
-      (imageCapture)="handleImage($event)"
       [switchCamera]="showNextWebcam"
       (cameraSwitched)="cameraWasSwitched($event)"
       [allowCameraSwitch]="true"
@@ -13,23 +12,17 @@
     </webcam>
 
     <div class="quality-selector">
-      <button 
-        [class.active]="(quality$ | async) === VideoQuality.LOW" 
-        (click)="setQuality(VideoQuality.LOW)"
-        [style.background-color]="(quality$ | async) === VideoQuality.LOW ? 'var(--primary-color)' : 'rgba(0,0,0,0.5)'">
-        360p
-      </button>
-      <button 
-        [class.active]="(quality$ | async) === VideoQuality.MEDIUM" 
-        (click)="setQuality(VideoQuality.MEDIUM)"
-        [style.background-color]="(quality$ | async) === VideoQuality.MEDIUM ? 'var(--primary-color)' : 'rgba(0,0,0,0.5)'">
-        720p
-      </button>
-      <button 
-        [class.active]="(quality$ | async) === VideoQuality.HIGH" 
-        (click)="setQuality(VideoQuality.HIGH)"
-        [style.background-color]="(quality$ | async) === VideoQuality.HIGH ? 'var(--primary-color)' : 'rgba(0,0,0,0.5)'">
-        1080p
+      <div class="bandwidth-info" *ngIf="bandwidth$ | async as bandwidth">
+        <span class="bandwidth-label">Current Bandwidth:</span>
+        <span class="bandwidth-value">{{ bandwidth | number:'1.1-1' }} Mbps</span>
+      </div>
+      
+      <button
+        *ngFor="let quality of qualities"
+        [class.active]="(videoQuality$ | async) === quality"
+        (click)="setQuality(quality)"
+      >
+        {{ quality }}
       </button>
     </div>
 

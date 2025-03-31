@@ -5,17 +5,17 @@ import { VideoStorageService } from '../services/video-storage.service';
 import { tap } from 'rxjs/operators';
 
 export class AddVideo {
-  static readonly type = '[Video] Add';
+  static readonly type = '[Video] Add Video';
   constructor(public video: VideoRecording) {}
 }
 
 export class DeleteVideo {
-  static readonly type = '[Video] Delete';
+  static readonly type = '[Video] Delete Video';
   constructor(public id: string) {}
 }
 
 export class LoadVideos {
-  static readonly type = '[Video] Load';
+  static readonly type = '[Video] Load Videos';
 }
 
 export class SetBandwidth {
@@ -41,7 +41,7 @@ const defaults: VideoStateModel = {
 };
 
 @State<VideoStateModel>({
-  name: 'video',
+  name: 'videos',
   defaults
 })
 @Injectable()
@@ -77,9 +77,6 @@ export class VideoState implements NgxsOnInit {
       const videos = await this.videoStorageService.getVideos();
       console.log('Loaded videos:', videos);
       ctx.patchState({
-        recordings: []
-      });
-      ctx.patchState({
         recordings: videos
       });
     } catch (error) {
@@ -92,15 +89,12 @@ export class VideoState implements NgxsOnInit {
 
   @Action(AddVideo)
   async addVideo(ctx: StateContext<VideoStateModel>, action: AddVideo) {
-    console.log('Adding video:', action.video);
-    try {
+    const state = ctx.getState();
+    if (!state.recordings.some(v => v.id === action.video.id)) {
       await this.videoStorageService.saveVideo(action.video);
-      const state = ctx.getState();
       ctx.patchState({
         recordings: [...state.recordings, action.video]
       });
-    } catch (error) {
-      console.error('Error adding video:', error);
     }
   }
 

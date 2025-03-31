@@ -7,118 +7,150 @@
 .video-preview {
   position: relative;
   background: #000;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   aspect-ratio: 16/9;
 
   webcam {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    display: block;
   }
 }
 
 .quality-selector {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: 20px;
+  right: 20px;
   display: flex;
-  gap: 8px;
-  z-index: 10;
+  flex-direction: column;
+  gap: 10px;
+  
+  .bandwidth-info {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    
+    .bandwidth-label {
+      opacity: 0.7;
+      margin-bottom: 4px;
+    }
+    
+    .bandwidth-value {
+      font-weight: 600;
+    }
+  }
 
   button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.7);
     color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
     cursor: pointer;
-    font-weight: 500;
     transition: all 0.3s ease;
-
+    font-size: 14px;
+    
     &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      background: rgba(0, 0, 0, 0.9);
     }
-
+    
     &.active {
-      transform: translateY(-2px);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      background: var(--primary-color, #007bff);
     }
   }
 }
 
 .record-controls {
   position: absolute;
-  bottom: 16px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
-  z-index: 10;
-}
-
-.record-btn {
-  padding: 12px 32px;
-  border: none;
-  border-radius: 24px;
-  color: white;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 1.1em;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  gap: 10px;
+  
+  .record-btn {
+    background: var(--primary-color, #007bff);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 24px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background: darken(#007bff, 10%);
+    }
+    
+    &.recording {
+      background: #dc3545;
+      animation: pulse 2s infinite;
+    }
   }
-
-  &.recording {
-    animation: pulse 1.5s infinite;
+  
+  .timer {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
   }
-}
-
-.timer {
-  color: white;
-  font-size: 1.2em;
-  font-weight: bold;
-  background: rgba(0,0,0,0.5);
-  padding: 4px 12px;
-  border-radius: 12px;
-}
-
-.progress-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: rgba(255,255,255,0.2);
-  z-index: 10;
-
-  .progress {
-    height: 100%;
-    background: var(--primary-color);
-    transition: width 0.1s linear;
+  
+  .progress-bar {
+    width: 200px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    overflow: hidden;
+    
+    .progress {
+      height: 100%;
+      background: var(--primary-color, #007bff);
+      transition: width 0.1s linear;
+    }
   }
 }
 
 .error-messages {
-  margin-top: 16px;
-  padding: 8px;
-  border-radius: 4px;
-  background: rgba(255,0,0,0.1);
-
+  margin-top: 20px;
+  
   .error {
-    color: var(--danger-color);
-    margin: 4px 0;
-    font-size: 0.9em;
+    background: #dc3545;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    &::before {
+      content: '⚠️';
+    }
   }
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.7; }
-  100% { opacity: 1; }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 } 
