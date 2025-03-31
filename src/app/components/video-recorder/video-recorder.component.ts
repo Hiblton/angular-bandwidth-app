@@ -1,22 +1,17 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { WebcamComponent, WebcamImage, WebcamInitError, WebcamUtil } from 'ngx-webcam';
 import { Store } from '@ngxs/store';
-import { VideoState, AddVideo } from '../../store/video.state';
+import { VideoState, AddVideo, LoadVideos } from '../../store/video.state';
 import { VideoStorageService } from '../../services/video-storage.service';
 import { v4 as uuidv4 } from 'uuid';
-import { BehaviorSubject, Observable, Subscription, filter, tap } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, filter, tap, Subject } from 'rxjs';
 import { VideoRecording } from '../../models/video.model';
-import { WebcamModule } from 'ngx-webcam';
 import { BandwidthService, VideoQuality } from '../../services/bandwidth.service';
 
 @Component({
   selector: 'app-video-recorder',
   templateUrl: './video-recorder.component.html',
-  styleUrls: ['./video-recorder.component.scss'],
-  standalone: true,
-  imports: [CommonModule, FormsModule, WebcamModule]
+  styleUrls: ['./video-recorder.component.scss']
 })
 export class VideoRecorderComponent implements OnInit, OnDestroy {
   @ViewChild('webcam') webcam!: WebcamComponent;
@@ -73,7 +68,7 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
   public recordingProgress: number = 0;
 
   // Camera controls
-  public showNextWebcam = new BehaviorSubject<boolean>(false);
+  public showNextWebcam = new Subject<void>();
   public availableWebcams: MediaDeviceInfo[] = [];
   public currentWebcam: MediaDeviceInfo | null = null;
 
@@ -97,6 +92,9 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
+    // Load existing videos first
+    this.store.dispatch(new LoadVideos());
+    
     this.initializeCamera();
     this.setupQualitySubscription();
     try {
@@ -277,7 +275,7 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
           id: uuidv4(),
           blob,
           timestamp: Date.now(),
-          duration: this.recordingTime,
+          duration: Math.round(this.recordingTime * 1000), // Convert seconds to milliseconds
           quality: this.bandwidthService.getQuality()
         };
 
@@ -318,8 +316,26 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
 
   public stopRecording(): void {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      // Calculate final duration before stopping
+      const finalDuration = Math.round((Date.now() - this.recordingStartTime));
+      
+      // Update the onstop callback to use the final duration
+      this.mediaRecorder.onstop = () => {
+        const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+        const recording: VideoRecording = {
+          id: uuidv4(),
+          blob,
+          timestamp: Date.now(),
+          duration: finalDuration, // Use the final duration directly in milliseconds
+          quality: this.bandwidthService.getQuality()
+        };
+
+        // Only dispatch to store, the state will handle storage
+        this.store.dispatch(new AddVideo(recording));
+        this.recordedChunks = [];
+      };
+
       this.mediaRecorder.stop();
-      // Don't stop the webcam stream, only stop the recorder
       this.mediaRecorder = null;
     }
 
@@ -343,8 +359,7 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
   }
 
   public toggleCamera(): void {
-    const currentValue = this.showNextWebcam.value;
-    this.showNextWebcam.next(!currentValue);
+    this.showNextWebcam.next();
   }
 
   public cameraWasSwitched(deviceId: string): void {

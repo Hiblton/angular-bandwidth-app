@@ -2,11 +2,11 @@
   <div class="video-preview">
     <webcam
       #webcam
+      [trigger]="showNextWebcam"
       [videoOptions]="videoOptions"
       (initError)="handleInitError($event)"
-      [switchCamera]="showNextWebcam"
+      [allowCameraSwitch]="availableWebcams.length > 1"
       (cameraSwitched)="cameraWasSwitched($event)"
-      [allowCameraSwitch]="true"
       [height]="480"
       [width]="640">
     </webcam>

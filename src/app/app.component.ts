@@ -1,16 +1,7 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { VideoRecorderComponent } from './components/video-recorder/video-recorder.component';
-import { VideoListComponent } from './components/video-list/video-list.component';
 
 @Component({
   selector: 'app-root',
-  standalone: true,
-  imports: [
-    CommonModule,
-    VideoRecorderComponent,
-    VideoListComponent
-  ],
   template: `
     <div class="app-container">
       <div class="recorder-section">
@@ -32,19 +23,19 @@ import { VideoListComponent } from './components/video-list/video-list.component
       background-color: var(--light-color);
     }
 
-    .recorder-section, .list-section {
-      height: 100%;
-      overflow-y: auto;
+    .recorder-section {
       background: white;
-      border-radius: var(--border-radius);
-      box-shadow: var(--box-shadow);
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 20px;
     }
 
-    @media (max-width: 768px) {
-      .app-container {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-      }
+    .list-section {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      overflow: hidden;
     }
   `]
 })

@@ -11,7 +11,7 @@ export enum VideoQuality {
   providedIn: 'root'
 })
 export class BandwidthService {
-  private readonly TEST_FILE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Moon.jpg/1024px-Moon.jpg';
+  private readonly TEST_FILE_SIZE = 1024 * 1024; // 1MB test file
   private readonly TEST_ITERATIONS = 3;
   private readonly TIMEOUT_MS = 10000;
 
@@ -25,9 +25,17 @@ export class BandwidthService {
     try {
       const speeds: number[] = [];
       
+      // Create a test file with random data
+      const testData = new Uint8Array(this.TEST_FILE_SIZE);
+      for (let i = 0; i < this.TEST_FILE_SIZE; i++) {
+        testData[i] = Math.floor(Math.random() * 256);
+      }
+      const testBlob = new Blob([testData], { type: 'application/octet-stream' });
+      const testUrl = URL.createObjectURL(testBlob);
+      
       for (let i = 0; i < this.TEST_ITERATIONS; i++) {
         const startTime = performance.now();
-        const response = await fetch(this.TEST_FILE_URL + '?t=' + Date.now(), {
+        const response = await fetch(testUrl, {
           cache: 'no-store'
         });
         
@@ -42,6 +50,9 @@ export class BandwidthService {
         
         speeds.push(speedMbps);
       }
+
+      // Clean up the test URL
+      URL.revokeObjectURL(testUrl);
 
       // Calculate average speed
       const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;

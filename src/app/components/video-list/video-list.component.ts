@@ -1,140 +1,72 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { Select, Store } from '@ngxs/store';
-import { Observable, Subject, of } from 'rxjs';
-import { takeUntil, tap, catchError } from 'rxjs/operators';
-import { CommonModule, DatePipe } from '@angular/common';
+import { Store } from '@ngxs/store';
+import { VideoState, LoadVideos, DeleteVideo } from '../../store/video.state';
 import { VideoRecording } from '../../models/video.model';
-import { VideoState, DeleteVideo, LoadVideos } from '../../store/video.state';
+import { Observable, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { DurationPipe } from '../../pipes/duration.pipe';
 
 @Component({
   selector: 'app-video-list',
-  standalone: true,
-  imports: [CommonModule, DatePipe],
   templateUrl: './video-list.component.html',
-  styleUrls: ['./video-list.component.scss']
+  styleUrls: ['./video-list.component.scss'],
+  imports: [DurationPipe]
 })
 export class VideoListComponent implements OnInit, OnDestroy {
   videos$: Observable<VideoRecording[]>;
+  loading$: Observable<boolean>;
+  error$: Observable<string | null>;
   private destroy$ = new Subject<void>();
-  private blobUrls = new Map<string, string>();
+  private blobUrls: { [key: string]: string } = {};
 
   constructor(
     private store: Store,
     private cdr: ChangeDetectorRef
   ) {
-    console.log('VideoListComponent initialized');
-    this.videos$ = this.store.select(VideoState.recordings).pipe(
-      tap(() => {
-        // Clean up old blob URLs when videos change
-        this.cleanupBlobUrls();
-      }),
-      catchError(error => {
-        console.error('Error selecting recordings:', error);
-        return of([]);
-      })
-    );
+    this.videos$ = this.store.select(VideoState.recordings);
+    this.loading$ = this.store.select(VideoState.loading);
+    this.error$ = this.store.select(VideoState.error);
   }
 
-  ngOnInit() {
-    console.log('VideoListComponent ngOnInit');
+  ngOnInit(): void {
+    // Load videos only once
     this.store.dispatch(new LoadVideos());
 
-    if (this.videos$) {
-      this.videos$.pipe(
-        takeUntil(this.destroy$),
-        tap(videos => {
-          console.log('Videos updated:', videos);
-          // Run change detection after videos update
-          this.cdr.detectChanges();
-        }),
-        catchError(error => {
-          console.error('Error in videos$ subscription:', error);
-          return of([]);
-        })
-      ).subscribe();
-    }
+    // Subscribe to videos$ to handle blob URLs
+    this.videos$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(videos => {
+        // Revoke old blob URLs
+        Object.values(this.blobUrls).forEach(url => URL.revokeObjectURL(url));
+        this.blobUrls = {};
+
+        // Create new blob URLs
+        videos.forEach(video => {
+          if (video.blob instanceof Blob) {
+            this.blobUrls[video.id] = URL.createObjectURL(video.blob);
+          }
+        });
+
+        this.cdr.detectChanges();
+      });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-    this.cleanupBlobUrls();
+    // Clean up blob URLs
+    Object.values(this.blobUrls).forEach(url => URL.revokeObjectURL(url));
   }
 
-  trackByFn(index: number, video: VideoRecording): string {
+  trackByVideoId(index: number, video: VideoRecording): string {
     return video.id;
   }
 
   getVideoUrl(video: VideoRecording): string {
-    if (!video) {
-      console.error('Video is undefined');
-      return '';
-    }
-
-    // Check if we already have a blob URL for this video
-    if (this.blobUrls.has(video.id)) {
-      return this.blobUrls.get(video.id)!;
-    }
-
-    console.log('Getting URL for video:', video);
-    let blob: Blob;
-    
-    if (video.blob instanceof Blob) {
-      blob = video.blob;
-    } else {
-      blob = this.base64ToBlob(video.blob as string);
-    }
-
-    const url = URL.createObjectURL(blob);
-    this.blobUrls.set(video.id, url);
-    return url;
+    return this.blobUrls[video.id] || '';
   }
 
-  deleteVideo(id: string) {
-    if (!id) {
-      console.error('Video ID is undefined');
-      return;
-    }
-    console.log('Deleting video:', id);
-    
-    // Revoke the blob URL before deleting
-    if (this.blobUrls.has(id)) {
-      URL.revokeObjectURL(this.blobUrls.get(id)!);
-      this.blobUrls.delete(id);
-    }
-    
-    this.store.dispatch(new DeleteVideo(id));
-  }
-
-  private cleanupBlobUrls() {
-    // Revoke all existing blob URLs
-    this.blobUrls.forEach(url => URL.revokeObjectURL(url));
-    this.blobUrls.clear();
-  }
-
-  private base64ToBlob(base64String: string): Blob {
-    try {
-      // Check if the base64String is actually a base64 string
-      if (typeof base64String !== 'string') {
-        throw new Error('Invalid base64 string');
-      }
-
-      // Remove data URL prefix if present
-      const base64Data = base64String.includes('base64,') 
-        ? base64String.split('base64,')[1] 
-        : base64String;
-
-      // Convert base64 to binary
-      const binaryString = window.atob(base64Data);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-
-      return new Blob([bytes], { type: 'video/webm' });
-    } catch (error) {
-      console.error('Error converting base64 to blob:', error);
-      throw error;
-    }
+  deleteVideo(video: VideoRecording): void {
+    this.store.dispatch(new DeleteVideo(video.id));
   }
 } 
