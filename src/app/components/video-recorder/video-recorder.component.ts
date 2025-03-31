@@ -84,7 +84,8 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
     [VideoQuality.HIGH]: { width: 1920, height: 1080, frameRate: 60 }
   };
 
-  currentQuality: VideoQuality = VideoQuality.MEDIUM;
+  private readonly QUALITY_STORAGE_KEY = 'selectedVideoQuality';
+  currentQuality: VideoQuality = this.loadSavedQuality();
   stream: MediaStream | null = null;
   progressInterval: number | null = null;
 
@@ -101,7 +102,16 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     try {
       this.store.dispatch(new LoadVideos());
-      await this.measureBandwidth();
+      
+      // Load saved quality if exists, otherwise measure bandwidth
+      const savedQuality = localStorage.getItem(this.QUALITY_STORAGE_KEY);
+      if (savedQuality) {
+        this.currentQuality = savedQuality as VideoQuality;
+        this.updateVideoQuality(this.currentQuality);
+      } else {
+        await this.measureBandwidth();
+      }
+      
       await this.initializeCamera();
     } catch (error) {
       this.webcamError = 'Failed to initialize the application. Please check your camera permissions and try again.';
@@ -308,7 +318,9 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
   }
 
   async updateQuality(quality: VideoQuality) {
-    this.updateVideoQuality(quality);
+    this.currentQuality = quality;
+    localStorage.setItem(this.QUALITY_STORAGE_KEY, quality);
+    await this.restartCamera();
   }
 
   private async measureBandwidth() {
@@ -334,6 +346,14 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
       clearInterval(this.progressInterval);
       this.progressInterval = null;
     }
+  }
+
+  private loadSavedQuality(): VideoQuality {
+    const savedQuality = localStorage.getItem(this.QUALITY_STORAGE_KEY);
+    if (savedQuality && Object.values(VideoQuality).includes(savedQuality as VideoQuality)) {
+      return savedQuality as VideoQuality;
+    }
+    return VideoQuality.MEDIUM;
   }
 
   ngOnDestroy(): void {
