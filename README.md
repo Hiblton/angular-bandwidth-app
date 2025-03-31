@@ -1,46 +1,47 @@
-# Angular Bandwidth Check and Video Recorder
+# Angular Bandwidth & Video Recording App
 
-A responsive web application built with Angular that evaluates the user's bandwidth and provides video recording capabilities with dynamic quality settings.
+A responsive web application built with Angular 15 that measures user bandwidth, provides adaptive web camera quality settings, and allows recording and storing video snippets locally.
+
+Live Demo: [https://hiblton.github.io/angular-bandwidth-app/](https://hiblton.github.io/angular-bandwidth-app/)
 
 ## Features
 
-- **Bandwidth Check**
-  - Automatically measures user's bandwidth on app load
-  - Determines video quality based on bandwidth:
-    - Low Quality (360p): < 2 Mbps
-    - Medium Quality (720p): 2-5 Mbps
-    - High Quality (1080p): > 5 Mbps
+- **Automatic Bandwidth Detection**
+  - Measures user's bandwidth on app load
+  - Automatically selects optimal video quality
+  - Fallback to Medium quality if detection fails
+
+- **Adaptive Video Quality**
+  - Low Quality (360p) for < 2 Mbps
+  - Medium Quality (720p) for 2-5 Mbps
+  - High Quality (1080p) for > 5 Mbps
+  - Manual quality override available
 
 - **Video Recording**
-  - Record video snippets up to 10 seconds
-  - Manual quality selection override
-  - Real-time recording timer
-  - Automatic quality adjustment based on bandwidth
+  - Up to 10 seconds recording length
+  - Progress indicator
+  - Manual stop option
+  - Quality indicator
 
 - **Video Management**
-  - List of recorded videos with thumbnails
-  - Video playback controls
+  - Persistent storage across sessions
+  - Video playback
   - Delete functionality
-  - Persistent storage (videos remain after page refresh)
+  - Duration display
 
-## Technical Details
+## Technology Stack
 
-- **State Management**: NGXS for centralized state management
-- **Storage**: LocalStorage with Base64 encoding for video persistence
-- **Video Processing**: MediaRecorder API for video capture and WebM format
-- **Styling**: CSS Grid and Flexbox for responsive layout
-
-## Prerequisites
-
-- Node.js (v14 or higher)
-- npm (v6 or higher)
-- Modern web browser with webcam support
+- Angular 15
+- NGXS for state management
+- LocalForage for persistent storage
+- WebRTC for camera access and recording
+- SCSS for styling
 
 ## Setup Instructions
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/hiblton/angular-bandwidth-app.git
    cd angular-bandwidth-app
    ```
 
@@ -49,51 +50,87 @@ A responsive web application built with Angular that evaluates the user's bandwi
    npm install
    ```
 
-3. Start the development server:
+3. Run the development server:
    ```bash
    npm start
    ```
 
-4. Open your browser and navigate to `http://localhost:4200`
+4. Open browser at `http://localhost:4200`
+
+## Build
+
+To build the project:
+```bash
+npm run build
+```
+
+The build artifacts will be stored in the `dist/angular-bandwidth-app` directory.
 
 ## Implementation Details
 
+### State Management
+- Using NGXS for centralized state management
+- States include:
+  - Video recordings
+  - Bandwidth information
+  - Selected quality
+  - Loading states
+  - Error states
+
+### Persistence Strategy
+- LocalForage for IndexedDB storage
+- Video blobs are converted to base64 for storage
+- Automatic cleanup of old recordings (30 days)
+- Maximum 10 videos stored
+
+### Video Recording
+- WebRTC MediaRecorder API
+- Quality settings:
+  ```typescript
+  LOW: { width: 640, height: 480, frameRate: 15 }
+  MEDIUM: { width: 1280, height: 720, frameRate: 30 }
+  HIGH: { width: 1920, height: 1080, frameRate: 60 }
+  ```
+
 ### Bandwidth Detection
-The application uses a test file download to measure bandwidth. It performs multiple measurements and averages them for accuracy.
+- Downloads a test file
+- Measures download speed
+- Uses multiple iterations for accuracy
+- Fallback mechanism for failed detection
 
-### Video Storage
-Videos are stored in the browser's LocalStorage:
-- Video blobs are converted to Base64 strings for storage
-- Metadata (quality, duration, timestamp) is stored alongside the video
-- Videos older than 30 days are automatically cleaned up
+## Technical Challenges & Solutions
 
-### Error Handling
-- Graceful fallback to medium quality if bandwidth detection fails
-- User notifications for camera access issues
-- Validation for storage limits and video duration
+1. **Blob Storage**
+   - Challenge: Storing large video blobs in IndexedDB
+   - Solution: Base64 conversion with efficient chunking
 
-## Browser Support
+2. **Memory Management**
+   - Challenge: Memory leaks from video elements
+   - Solution: Proper cleanup of blob URLs and MediaRecorder instances
 
-Tested and supported in:
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
+3. **Quality Switching**
+   - Challenge: Seamless camera quality changes
+   - Solution: Stream restart with new constraints
 
-## Known Limitations
+4. **Browser Compatibility**
+   - Challenge: Different browser implementations of MediaRecorder
+   - Solution: Standardized video format (WebM) and codec selection
 
-- LocalStorage has a size limit (typically 5-10MB)
-- Video quality is limited by the user's camera capabilities
-- Bandwidth measurement may vary based on network conditions
+## Error Handling
 
-## Contributing
+- Camera permission denials
+- Bandwidth detection failures
+- Storage quota exceeded
+- Device compatibility issues
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Future Improvements
+
+1. Video thumbnails generation
+2. Custom video player controls
+3. Video sharing functionality
+4. Better compression for storage
+5. Network status monitoring
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT

@@ -1,7 +1,8 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Store } from '@ngxs/store';
-import { VideoState, LoadVideos, DeleteVideo } from '../../store/video.state';
-import { VideoRecording } from '../../models/video.model';
+import { VideoState } from '../../store/video.state';
+import { LoadVideos, DeleteVideo } from '../../store/video.actions';
+import { VideoRecording } from '../../types/video.types';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 

@@ -1,86 +1,59 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-
-export enum VideoQuality {
-  LOW = '360p',
-  MEDIUM = '720p',
-  HIGH = '1080p'
-}
+import { VideoQuality, BandwidthInfo } from '../types/video.types';
 
 @Injectable({
   providedIn: 'root'
 })
 export class BandwidthService {
-  private readonly TEST_FILE_SIZE = 1024 * 1024; // 1MB test file
+  private readonly TEST_FILE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Moon.jpg/1024px-Moon.jpg';
   private readonly TEST_ITERATIONS = 3;
-  private readonly TIMEOUT_MS = 10000;
+  private readonly QUALITY_THRESHOLDS = {
+    HIGH: 5,   // Mbps
+    MEDIUM: 2  // Mbps
+  };
 
-  private bandwidthSubject = new BehaviorSubject<number>(0);
-  private qualitySubject = new BehaviorSubject<VideoQuality>(VideoQuality.MEDIUM);
-
+  private bandwidthSubject = new BehaviorSubject<BandwidthInfo | null>(null);
   bandwidth$ = this.bandwidthSubject.asObservable();
-  quality$ = this.qualitySubject.asObservable();
 
-  async measureBandwidth(): Promise<number> {
+  async measureBandwidth(): Promise<BandwidthInfo> {
     try {
       const speeds: number[] = [];
       
-      // Create a test file with random data
-      const testData = new Uint8Array(this.TEST_FILE_SIZE);
-      for (let i = 0; i < this.TEST_FILE_SIZE; i++) {
-        testData[i] = Math.floor(Math.random() * 256);
-      }
-      const testBlob = new Blob([testData], { type: 'application/octet-stream' });
-      const testUrl = URL.createObjectURL(testBlob);
-      
       for (let i = 0; i < this.TEST_ITERATIONS; i++) {
         const startTime = performance.now();
-        const response = await fetch(testUrl, {
-          cache: 'no-store'
-        });
-        
-        if (!response.ok) throw new Error('Network response was not ok');
-        
+        const response = await fetch(`${this.TEST_FILE_URL}?t=${Date.now()}`);
         const blob = await response.blob();
         const endTime = performance.now();
         
-        const durationSeconds = (endTime - startTime) / 1000;
-        const fileSizeInBits = blob.size * 8;
-        const speedMbps = (fileSizeInBits / durationSeconds) / 1_000_000;
-        
-        speeds.push(speedMbps);
+        const duration = (endTime - startTime) / 1000; // seconds
+        const fileSize = blob.size / (1024 * 1024); // MB
+        const speed = fileSize / duration; // MB/s
+        speeds.push(speed * 8); // Convert to Mbps
       }
 
-      // Clean up the test URL
-      URL.revokeObjectURL(testUrl);
-
-      // Calculate average speed
       const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
-      this.bandwidthSubject.next(avgSpeed);
+      const quality = this.determineQuality(avgSpeed);
+      const bandwidthInfo: BandwidthInfo = { speed: avgSpeed, quality };
       
-      // Set quality based on bandwidth
-      if (avgSpeed < 2) {
-        this.qualitySubject.next(VideoQuality.LOW);
-      } else if (avgSpeed <= 5) {
-        this.qualitySubject.next(VideoQuality.MEDIUM);
-      } else {
-        this.qualitySubject.next(VideoQuality.HIGH);
-      }
-
-      return avgSpeed;
+      this.bandwidthSubject.next(bandwidthInfo);
+      return bandwidthInfo;
     } catch (error) {
-      console.error('Bandwidth measurement failed:', error);
-      // Default to medium quality on error
-      this.qualitySubject.next(VideoQuality.MEDIUM);
-      return 3; // Default to 3 Mbps
+      const fallbackInfo: BandwidthInfo = {
+        speed: 0,
+        quality: VideoQuality.MEDIUM
+      };
+      this.bandwidthSubject.next(fallbackInfo);
+      return fallbackInfo;
     }
   }
 
-  setQuality(quality: VideoQuality) {
-    this.qualitySubject.next(quality);
-  }
-
-  getQuality(): VideoQuality {
-    return this.qualitySubject.value;
+  private determineQuality(speed: number): VideoQuality {
+    if (speed >= this.QUALITY_THRESHOLDS.HIGH) {
+      return VideoQuality.HIGH;
+    } else if (speed >= this.QUALITY_THRESHOLDS.MEDIUM) {
+      return VideoQuality.MEDIUM;
+    }
+    return VideoQuality.LOW;
   }
 }

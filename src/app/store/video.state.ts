@@ -1,41 +1,8 @@
 import { Injectable } from '@angular/core';
 import { State, Action, StateContext, Selector, NgxsOnInit } from '@ngxs/store';
-import { VideoRecording, VideoQuality, BandwidthInfo } from '../models/video.model';
 import { VideoStorageService } from '../services/video-storage.service';
-import { tap, catchError } from 'rxjs/operators';
-import { of } from 'rxjs';
-
-export class AddVideo {
-  static readonly type = '[Video] Add Video';
-  constructor(public video: VideoRecording) {}
-}
-
-export class DeleteVideo {
-  static readonly type = '[Video] Delete Video';
-  constructor(public id: string) {}
-}
-
-export class LoadVideos {
-  static readonly type = '[Video] Load Videos';
-}
-
-export class SetBandwidth {
-  static readonly type = '[Video] Set Bandwidth';
-  constructor(public bandwidth: BandwidthInfo) {}
-}
-
-export class SetQuality {
-  static readonly type = '[Video] Set Quality';
-  constructor(public quality: VideoQuality) {}
-}
-
-export interface VideoStateModel {
-  recordings: VideoRecording[];
-  bandwidth: BandwidthInfo | null;
-  selectedQuality: VideoQuality;
-  loading: boolean;
-  error: string | null;
-}
+import { VideoStateModel, VideoQuality, VideoRecording, BandwidthInfo } from '../types/video.types';
+import { AddVideo, DeleteVideo, LoadVideos, SetBandwidth, SetQuality } from './video.actions';
 
 const defaults: VideoStateModel = {
   recordings: [],
@@ -92,7 +59,6 @@ export class VideoState implements NgxsOnInit {
         loading: false
       });
     } catch (error) {
-      console.error('Error loading videos:', error);
       ctx.patchState({
         recordings: [],
         loading: false,
@@ -114,7 +80,6 @@ export class VideoState implements NgxsOnInit {
         });
       }
     } catch (error) {
-      console.error('Error adding video:', error);
       ctx.patchState({
         loading: false,
         error: 'Failed to add video'
@@ -133,7 +98,6 @@ export class VideoState implements NgxsOnInit {
         loading: false
       });
     } catch (error) {
-      console.error('Error deleting video:', error);
       ctx.patchState({
         loading: false,
         error: 'Failed to delete video'

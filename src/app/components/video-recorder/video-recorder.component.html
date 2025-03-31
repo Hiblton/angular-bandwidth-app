@@ -14,13 +14,13 @@
     <div class="quality-selector">
       <div class="bandwidth-info" *ngIf="bandwidth$ | async as bandwidth">
         <span class="bandwidth-label">Current Bandwidth:</span>
-        <span class="bandwidth-value">{{ bandwidth | number:'1.1-1' }} Mbps</span>
+        <span class="bandwidth-value">{{ bandwidth.speed | number:'1.1-1' }} Mbps</span>
       </div>
       
       <button
         *ngFor="let quality of qualities"
-        [class.active]="(videoQuality$ | async) === quality"
-        (click)="setQuality(quality)"
+        [class.active]="currentQuality === quality"
+        (click)="updateQuality(quality)"
       >
         {{ quality }}
       </button>
@@ -40,6 +40,10 @@
     <div *ngIf="isRecording" class="progress-bar">
       <div class="progress" [style.width.%]="recordingProgress"></div>
     </div>
+  </div>
+
+  <div *ngIf="webcamError" class="error-messages">
+    <div class="error">{{ webcamError }}</div>
   </div>
 
   <div *ngIf="errors.length > 0" class="error-messages">

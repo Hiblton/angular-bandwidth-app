@@ -1,118 +1,86 @@
 import { Injectable } from '@angular/core';
-import { VideoRecording } from '../models/video.model';
-import * as localforage from 'localforage';
+import localforage from 'localforage';
+import { VideoRecording } from '../types/video.types';
 
 @Injectable({
   providedIn: 'root'
 })
 export class VideoStorageService {
   private readonly STORAGE_KEY = 'recorded_videos';
-  private readonly MAX_VIDEOS = 10; // Maximum number of videos to store
-
-  constructor() {
-    this.cleanupOldRecordings();
-  }
+  private readonly MAX_VIDEOS = 10;
+  private readonly MAX_AGE_DAYS = 30;
 
   async saveVideo(recording: VideoRecording): Promise<void> {
-    try {
-      const videos = await this.getVideosFromStorage();
-      
-      // If we're at the limit, remove the oldest video
-      if (videos.length >= this.MAX_VIDEOS) {
-        console.log('Storage limit reached, removing oldest video');
-        videos.sort((a, b) => a.timestamp - b.timestamp);
-        videos.shift(); // Remove oldest video
-      }
-
-      console.log('Saving video with duration:', recording.duration);
-
-      // Convert blob to base64 before saving
-      const videoToSave = {
-        ...recording,
-        blob: await this.blobToBase64(recording.blob as Blob)
-      };
-
-      console.log('Video to save duration:', videoToSave.duration);
-      videos.push(videoToSave);
-      await this.saveToStorage(videos);
-    } catch (error) {
-      console.error('Error saving video:', error);
-      throw error;
+    const videos = await this.getVideosFromStorage();
+    
+    if (videos.length >= this.MAX_VIDEOS) {
+      const oldestVideo = videos.reduce((oldest, current) => 
+        current.timestamp < oldest.timestamp ? current : oldest
+      );
+      await this.deleteVideo(oldestVideo.id);
     }
+
+    const videoToSave = {
+      ...recording,
+      blob: recording.blob instanceof Blob ? await this.blobToBase64(recording.blob) : recording.blob
+    };
+
+    const updatedVideos = [...videos, videoToSave];
+    await this.saveVideosToStorage(updatedVideos);
   }
 
   async getVideos(): Promise<VideoRecording[]> {
     try {
       const videos = await this.getVideosFromStorage();
-      if (!videos || !videos.length) return [];
-
-      console.log('Retrieved videos from storage:', videos.map(v => ({ id: v.id, duration: v.duration })));
-
-      // Convert base64 back to blob
-      const convertedVideos = await Promise.all(videos.map(async video => {
-        console.log('Processing video duration:', video.duration);
-        return {
+      const convertedVideos = await Promise.all(
+        videos.map(async video => ({
           ...video,
-          blob: video.blob instanceof Blob ? video.blob : await this.base64ToBlob(video.blob as string)
-        };
-      }));
-
-      console.log('Converted videos:', convertedVideos.map(v => ({ id: v.id, duration: v.duration })));
+          blob: typeof video.blob === 'string' ? await this.base64ToBlob(video.blob) : video.blob
+        }))
+      );
+      
+      await this.cleanupOldRecordings();
       return convertedVideos;
     } catch (error) {
-      console.error('Error getting videos from storage:', error);
       return [];
     }
   }
 
   private async getVideosFromStorage(): Promise<VideoRecording[]> {
     const videos = await localforage.getItem<VideoRecording[]>(this.STORAGE_KEY);
-    if (videos) {
-      console.log('Raw videos from storage:', videos.map(v => ({ id: v.id, duration: v.duration })));
-    }
     return videos || [];
   }
 
   async deleteVideo(id: string): Promise<void> {
     try {
       const videos = await this.getVideosFromStorage();
-      const filteredVideos = videos.filter(video => video.id !== id);
-      await this.saveToStorage(filteredVideos);
+      const updatedVideos = videos.filter(video => video.id !== id);
+      await this.saveVideosToStorage(updatedVideos);
     } catch (error) {
-      console.error('Error deleting video:', error);
-      throw error;
+      throw new Error('Failed to delete video');
     }
   }
 
-  private async saveToStorage(videos: VideoRecording[]): Promise<void> {
+  private async saveVideosToStorage(videos: VideoRecording[]): Promise<void> {
     try {
-      console.log('Saving videos to storage with durations:', videos.map(v => ({ id: v.id, duration: v.duration })));
       await localforage.setItem(this.STORAGE_KEY, videos);
     } catch (error) {
-      console.error('Error saving videos to storage:', error);
-      throw error;
+      throw new Error('Failed to save videos to storage');
     }
   }
 
   private async cleanupOldRecordings(): Promise<void> {
     try {
       const videos = await this.getVideosFromStorage();
+      const now = Date.now();
+      const maxAge = this.MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+      const updatedVideos = videos.filter(video => now - video.timestamp <= maxAge);
       
-      // Remove videos older than 30 days
-      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-      let filteredVideos = videos.filter(video => video.timestamp > thirtyDaysAgo);
-      
-      // If still too many videos, keep only the most recent ones
-      if (filteredVideos.length > this.MAX_VIDEOS) {
-        filteredVideos.sort((a, b) => b.timestamp - a.timestamp);
-        filteredVideos = filteredVideos.slice(0, this.MAX_VIDEOS);
-      }
-      
-      if (filteredVideos.length !== videos.length) {
-        await this.saveToStorage(filteredVideos);
+      if (updatedVideos.length !== videos.length) {
+        await this.saveVideosToStorage(updatedVideos);
       }
     } catch (error) {
-      console.error('Error cleaning up old recordings:', error);
+      throw new Error('Failed to clean up old recordings');
     }
   }
 
@@ -142,8 +110,7 @@ export class VideoStorageService {
         const blob = new Blob([ab], { type: 'video/webm' });
         resolve(blob);
       } catch (error) {
-        console.error('Error converting base64 to blob:', error);
-        reject(error);
+        reject(new Error('Failed to convert base64 to blob'));
       }
     });
   }

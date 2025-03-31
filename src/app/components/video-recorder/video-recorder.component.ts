@@ -1,12 +1,11 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { WebcamComponent, WebcamImage, WebcamInitError, WebcamUtil } from 'ngx-webcam';
 import { Store } from '@ngxs/store';
-import { VideoState, AddVideo, LoadVideos } from '../../store/video.state';
-import { VideoStorageService } from '../../services/video-storage.service';
+import { Subject, Observable, Subscription } from 'rxjs';
+import { BandwidthService } from '../../services/bandwidth.service';
+import { VideoQuality, VideoRecording, BandwidthInfo } from '../../types/video.types';
+import { AddVideo, LoadVideos } from '../../store/video.actions';
 import { v4 as uuidv4 } from 'uuid';
-import { BehaviorSubject, Observable, Subscription, filter, tap, Subject } from 'rxjs';
-import { VideoRecording } from '../../models/video.model';
-import { BandwidthService, VideoQuality } from '../../services/bandwidth.service';
 
 @Component({
   selector: 'app-video-recorder',
@@ -15,6 +14,7 @@ import { BandwidthService, VideoQuality } from '../../services/bandwidth.service
 })
 export class VideoRecorderComponent implements OnInit, OnDestroy {
   @ViewChild('webcam') webcam!: WebcamComponent;
+  @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
 
   // Webcam properties
   public webcamImage: WebcamImage | null = null;
@@ -23,10 +23,8 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
     width: { ideal: 1280 },
     height: { ideal: 720 },
     frameRate: { ideal: 30 },
-    // Add advanced video constraints
     advanced: [
       {
-        // Enable noise reduction and echo cancellation
         noiseSuppression: true,
         echoCancellation: true
       }
@@ -38,13 +36,11 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
     echoCancellation: { ideal: true },
     noiseSuppression: { ideal: true },
     autoGainControl: { ideal: true },
-    // Add advanced audio settings
     advanced: [{
       echoCancellation: true,
       noiseSuppression: true,
       autoGainControl: true,
-      // Attempt to reduce echo further
-      channelCount: { ideal: 1 }, // Mono audio can help reduce echo
+      channelCount: { ideal: 1 },
       sampleRate: { ideal: 48000 },
       sampleSize: { ideal: 16 }
     }]
@@ -64,7 +60,7 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
   private recordingTimer: any;
   public isRecording: boolean = false;
   public recordingTime: number = 0;
-  public maxRecordingTime: number = 10; // 10 seconds max
+  public maxRecordingTime: number = 10000; // 10 seconds
   public recordingProgress: number = 0;
 
   // Camera controls
@@ -78,50 +74,54 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
   public webcamError: string | null = null;
 
   // Observables
-  public videoQuality$: Observable<VideoQuality>;
-  public bandwidth$: Observable<number>;
+  public bandwidth$: Observable<BandwidthInfo | null>;
+
+  readonly VideoQuality = VideoQuality;
+  readonly qualityConstraints = {
+    [VideoQuality.LOW]: { width: 640, height: 480, frameRate: 15 },
+    [VideoQuality.MEDIUM]: { width: 1280, height: 720, frameRate: 30 },
+    [VideoQuality.HIGH]: { width: 1920, height: 1080, frameRate: 60 }
+  };
+
+  currentQuality: VideoQuality = VideoQuality.MEDIUM;
+  stream: MediaStream | null = null;
+  progressInterval: number | null = null;
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     private store: Store,
-    private videoStorageService: VideoStorageService,
     private cdr: ChangeDetectorRef,
     private bandwidthService: BandwidthService
   ) {
-    this.videoQuality$ = this.bandwidthService.quality$;
     this.bandwidth$ = this.bandwidthService.bandwidth$;
   }
 
   async ngOnInit(): Promise<void> {
-    // Load existing videos first
-    this.store.dispatch(new LoadVideos());
-    
-    this.initializeCamera();
-    this.setupQualitySubscription();
     try {
-      // Measure bandwidth on component init
-      const bandwidth = await this.bandwidthService.measureBandwidth();
-      console.log('Measured bandwidth:', bandwidth, 'Mbps');
+      this.store.dispatch(new LoadVideos());
+      await this.measureBandwidth();
+      await this.initializeCamera();
     } catch (error) {
-      console.error('Failed to measure bandwidth:', error);
-      this.webcamError = 'Failed to measure bandwidth. Using medium quality.';
+      this.webcamError = 'Failed to initialize the application. Please check your camera permissions and try again.';
     }
   }
 
   private async getMediaStream(): Promise<MediaStream | null> {
     try {
-      return await navigator.mediaDevices.getUserMedia({
-        video: this.videoOptions,
+      const constraints = {
+        video: this.qualityConstraints[this.currentQuality],
         audio: this.audioConstraints
-      });
+      };
+      return await navigator.mediaDevices.getUserMedia(constraints);
     } catch (error) {
-      console.error('Error accessing media devices:', error);
+      this.webcamError = 'Error accessing media devices. Please check your camera and microphone permissions.';
       return null;
     }
   }
 
   private async restartCamera(): Promise<void> {
     if (this.webcam) {
-      // Get the current video track and stop it
       const videoElement = (this.webcam as any).video.nativeElement;
       if (videoElement && videoElement.srcObject) {
         const stream = videoElement.srcObject as MediaStream;
@@ -129,100 +129,61 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
       }
       
       try {
-        // Get new stream with updated constraints
         const newStream = await this.getMediaStream();
         if (newStream && videoElement) {
           videoElement.srcObject = newStream;
-          console.log('Camera restarted with new constraints');
+          this.stream = newStream;
+          this.webcamError = null;
         }
-      } catch (error) {
-        console.error('Error restarting camera:', error);
+      } catch {
         this.webcamError = 'Failed to restart camera with new quality settings';
       }
 
-      // Force Angular to detect changes
       this.cdr.detectChanges();
     }
   }
 
-  private initializeCamera(): void {
-    WebcamUtil.getAvailableVideoInputs()
-      .then(async (devices: MediaDeviceInfo[]) => {
-        this.availableWebcams = devices;
-        if (devices.length > 0) {
-          this.currentWebcam = devices[0];
-          
-          try {
-            const stream = await this.getMediaStream();
-            if (stream && this.webcam) {
-              const videoElement = (this.webcam as any).video.nativeElement;
-              if (videoElement) {
-                videoElement.srcObject = stream;
-                console.log('Camera initialized with stream');
-              }
-            }
-          } catch (error) {
-            console.error('Error initializing camera stream:', error);
-            this.webcamError = 'Failed to initialize camera stream';
-          }
+  private async initializeCamera(): Promise<void> {
+    try {
+      const devices = await WebcamUtil.getAvailableVideoInputs();
+      this.availableWebcams = devices;
+      
+      if (devices.length === 0) {
+        throw new Error('No cameras found');
+      }
+
+      this.currentWebcam = devices[0];
+      const stream = await this.getMediaStream();
+      
+      if (!stream) {
+        throw new Error('Failed to get media stream');
+      }
+
+      if (this.webcam) {
+        const videoElement = (this.webcam as any).video.nativeElement;
+        if (videoElement) {
+          videoElement.srcObject = stream;
+          this.stream = stream;
+          this.webcamError = null;
+        } else {
+          throw new Error('Video element not found');
         }
-      })
-      .catch(err => {
-        console.error('Error getting webcams:', err);
-        this.webcamError = 'Failed to initialize webcam. Please check permissions and try again.';
-      });
-  }
-
-  private setupQualitySubscription(): void {
-    const qualitySub = this.videoQuality$.pipe(
-      filter(quality => quality !== undefined),
-      tap(quality => {
-        console.log('Quality updated:', quality);
-        this.updateVideoQuality(quality);
-      })
-    ).subscribe();
-
-    this.subscriptions.push(qualitySub);
+      }
+    } catch (error) {
+      this.webcamError = 'Failed to initialize webcam. Please check your camera permissions and try again.';
+    }
   }
 
   private updateVideoQuality(quality: VideoQuality): void {
-    const constraints: MediaTrackConstraints = {
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-      frameRate: { ideal: 30 },
-      advanced: [
-        {
-          noiseSuppression: true,
-          echoCancellation: true
-        }
-      ]
-    };
-
-    switch (quality) {
-      case VideoQuality.LOW:
-        constraints.width = { ideal: 640 };
-        constraints.height = { ideal: 480 };
-        constraints.frameRate = { ideal: 15 };
-        break;
-      case VideoQuality.MEDIUM:
-        constraints.width = { ideal: 1280 };
-        constraints.height = { ideal: 720 };
-        constraints.frameRate = { ideal: 30 };
-        break;
-      case VideoQuality.HIGH:
-        constraints.width = { ideal: 1920 };
-        constraints.height = { ideal: 1080 };
-        constraints.frameRate = { ideal: 60 };
-        break;
-    }
-
-    this.videoOptions = constraints;
+    this.currentQuality = quality;
+    this.videoOptions = this.qualityConstraints[quality];
     this.restartCamera();
   }
 
   public handleInitError(error: WebcamInitError): void {
-    console.error('Error initializing webcam:', error);
-    this.errors.push(error);
+    if (!this.errors.some(e => e.message === error.message)) {
+      this.errors.push(error);
+    }
   }
 
   public handleImage(webcamImage: WebcamImage): void {
@@ -233,27 +194,15 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
     if (this.isRecording) return;
 
     try {
-      const videoElement = (this.webcam as any).video.nativeElement;
-      if (!videoElement || !videoElement.srcObject) {
-        console.error('No video stream available');
-        return;
+      if (!this.stream) {
+        await this.initializeCamera();
       }
 
-      const stream = videoElement.srcObject as MediaStream;
-      
-      // Ensure we have both audio and video tracks
-      if (!stream.getAudioTracks().length) {
-        // If no audio track, try to get a new stream with audio
-        const newStream = await this.getMediaStream();
-        if (!newStream) {
-          throw new Error('Failed to get media stream with audio');
-        }
-        // Add audio track to existing stream
-        newStream.getAudioTracks().forEach(track => stream.addTrack(track));
+      if (!this.stream) {
+        throw new Error('No video stream available');
       }
 
-      // Create a new MediaRecorder with the stream
-      this.mediaRecorder = new MediaRecorder(stream, {
+      this.mediaRecorder = new MediaRecorder(this.stream, {
         mimeType: 'video/webm;codecs=vp8,opus'
       });
 
@@ -270,31 +219,28 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
       };
 
       this.mediaRecorder.onstop = () => {
+        const duration = Date.now() - this.recordingStartTime;
         const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
         const recording: VideoRecording = {
           id: uuidv4(),
           blob,
           timestamp: Date.now(),
-          duration: Math.round(this.recordingTime * 1000), // Convert seconds to milliseconds
-          quality: this.bandwidthService.getQuality()
+          duration,
+          quality: this.currentQuality
         };
 
-        // Only dispatch to store, the state will handle storage
         this.store.dispatch(new AddVideo(recording));
         this.recordedChunks = [];
       };
 
-      // Request data every second while recording
       this.mediaRecorder.start(1000);
       this.startRecordingTimer();
 
-      // Set timeout to stop recording after MAX_RECORDING_TIME
       this.recordingTimeout = setTimeout(() => {
         this.stopRecording();
       }, this.MAX_RECORDING_TIME);
 
     } catch (error) {
-      console.error('Error starting recording:', error);
       this.webcamError = 'Failed to start recording. Please try again.';
       this.isRecording = false;
     }
@@ -302,11 +248,11 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
 
   private startRecordingTimer(): void {
     this.recordingTimer = setInterval(() => {
-      const currentTime = Date.now();
-      this.recordingTime = (currentTime - this.recordingStartTime) / 1000;
-      this.recordingProgress = (this.recordingTime / this.maxRecordingTime) * 100;
+      const elapsed = Date.now() - this.recordingStartTime;
+      this.recordingTime = elapsed / 1000; // Convert to seconds for display
+      this.recordingProgress = (elapsed / this.maxRecordingTime) * 100;
 
-      if (this.recordingTime >= this.maxRecordingTime) {
+      if (elapsed >= this.maxRecordingTime) {
         this.stopRecording();
       }
 
@@ -316,21 +262,18 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
 
   public stopRecording(): void {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      // Calculate final duration before stopping
-      const finalDuration = Math.round((Date.now() - this.recordingStartTime));
+      const duration = Date.now() - this.recordingStartTime;
       
-      // Update the onstop callback to use the final duration
       this.mediaRecorder.onstop = () => {
         const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
         const recording: VideoRecording = {
           id: uuidv4(),
           blob,
           timestamp: Date.now(),
-          duration: finalDuration, // Use the final duration directly in milliseconds
-          quality: this.bandwidthService.getQuality()
+          duration,
+          quality: this.currentQuality
         };
 
-        // Only dispatch to store, the state will handle storage
         this.store.dispatch(new AddVideo(recording));
         this.recordedChunks = [];
       };
@@ -353,9 +296,6 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
     this.recordingTime = 0;
     this.recordingProgress = 0;
     this.cdr.detectChanges();
-
-    // Reinitialize the camera to ensure it's still running
-    this.initializeCamera();
   }
 
   public toggleCamera(): void {
@@ -366,12 +306,41 @@ export class VideoRecorderComponent implements OnInit, OnDestroy {
     this.currentWebcam = this.availableWebcams.find(webcam => webcam.deviceId === deviceId) || null;
   }
 
-  setQuality(quality: VideoQuality) {
-    this.bandwidthService.setQuality(quality);
+  async updateQuality(quality: VideoQuality) {
+    this.updateVideoQuality(quality);
+  }
+
+  private async measureBandwidth() {
+    try {
+      const bandwidthInfo = await this.bandwidthService.measureBandwidth();
+      this.currentQuality = bandwidthInfo.quality;
+      this.updateVideoQuality(this.currentQuality);
+    } catch {
+      this.currentQuality = VideoQuality.MEDIUM;
+      this.updateVideoQuality(this.currentQuality);
+    }
+  }
+
+  private stopMediaTracks() {
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
+    }
+  }
+
+  private clearProgressInterval() {
+    if (this.progressInterval) {
+      clearInterval(this.progressInterval);
+      this.progressInterval = null;
+    }
   }
 
   ngOnDestroy(): void {
     this.stopRecording();
     this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.stopMediaTracks();
+    this.clearProgressInterval();
   }
 }
